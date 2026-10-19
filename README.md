@@ -11,7 +11,7 @@ Load two or more laps, and see exactly where time is gained or lost: cumulative 
 
 ## Demo
 
-![Demo](demo.gif)
+![Demo](gif_projet_asseto.gif)
 
 ## Features
 

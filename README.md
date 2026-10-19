@@ -5,7 +5,7 @@
 ![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-11557C?style=for-the-badge&logo=python&logoColor=white)
 
-An interactive tool to compare my own laps in Assetto Corsa, built from telemetry recorded in game.
+An interactive tool to compare my own laps in Assetto Corsa, using telemetry recorded in game by a custom app.
 
 Load two or more laps, and see exactly where time is gained or lost: cumulative time delta, speed, brake, throttle and RPM, side by side with a track map colored by time lost every 100 m.
 
@@ -24,54 +24,84 @@ Load two or more laps, and see exactly where time is gained or lost: cumulative 
 
 ## Installation
 
-You need Python 3. Then, from the project folder:
+The comparator needs Python 3. Then, from the project folder:
 
 ```bash
 python -m pip install numpy pandas matplotlib
 ```
+
+## Project structure
+
+```
+TelemetryExporter/
+    TelemetryExporter.py   # in-game app that records each lap to CSV
+lap_comparator.py          # desktop tool that compares the recorded laps
+demo.gif
+```
+
+## Recording laps
+
+Laps are recorded in game by **TelemetryExporter**, a small Python app for Assetto Corsa.
+
+1. Copy the `TelemetryExporter` folder into your game's apps folder:
+   ```
+   <Assetto Corsa folder>/apps/python/TelemetryExporter/TelemetryExporter.py
+   ```
+   The folder and the file must have the same name.
+2. Enable the app: in Content Manager, *Settings > Assetto Corsa > Apps*, or in the game's *Options > General > UI Modules*.
+3. In a session, open the app from the app bar on the right side of the screen.
+4. Drive. Each completed lap is saved automatically to:
+   ```
+   Documents/AC_Telemetry_Exports/Lap_<lap>_<MM_SS_mmm>_<track>.csv
+   ```
+
+The out lap from the pits is incomplete and is skipped. The exporter only records a sample when the car has moved forward, so the distance column is always strictly increasing.
 
 ## Usage
 
 Compare two laps (the first one is the reference):
 
 ```bash
-python data_analys.py reference_lap.csv other_lap.csv
+python lap_comparator.py reference_lap.csv other_lap.csv
 ```
 
 Compare several laps at once:
 
 ```bash
-python data_analys.py reference_lap.csv lap_2.csv lap_3.csv
+python lap_comparator.py reference_lap.csv lap_2.csv lap_3.csv
 ```
 
 Also open a large track map in a separate window:
 
 ```bash
-python data_analys.py reference_lap.csv other_lap.csv --carte
+python lap_comparator.py reference_lap.csv other_lap.csv --map
 ```
 
 The terminal prints the lap times and the final gap of each lap to the reference, then the charts open.
 
 ## CSV format
 
-Each lap is a CSV file. Optional metadata lines starting with `#` can appear at the top:
+Each file starts with metadata lines, followed by one row per recorded frame:
 
 ```
 # circuit=spa
-# temps=1_48_595
-Temps(s),Distance(m),Vitesse(kmh),Brake(%),Throttle(%),RPM,PosX,PosZ
-0.000,0.0,218.4,0,100,17950,-412.3,118.7
-...
+# longueur_m=7004.0
+# tour=3
+# temps=01_48_595
+Temps(s),NSP,Distance(m),PosX,PosZ,Vitesse(kmh),RPM,Throttle(%),Brake(%)
 ```
 
-| Column | Required | Used for |
-|---|---|---|
-| `Temps(s)` | Yes | Elapsed time, used to compute the delta |
-| `Distance(m)` | Yes | Common axis for all laps |
-| `Vitesse(kmh)`, `Brake(%)`, `Throttle(%)`, `RPM` | No | Telemetry panels |
-| `PosX`, `PosZ` | No | Track map |
+| Column | Description |
+|---|---|
+| `Temps(s)` | Elapsed lap time |
+| `NSP` | Normalized spline position: progress along the lap, from 0 to 1 |
+| `Distance(m)` | `NSP` multiplied by the track length |
+| `PosX`, `PosZ` | Car position on the horizontal plane, used for the track map |
+| `Vitesse(kmh)` | Speed |
+| `RPM` | Engine speed |
+| `Throttle(%)`, `Brake(%)` | Pedal inputs |
 
-Metadata: `circuit` sets the chart title, `temps` (format `M_SS_mmm`) sets the official lap time. Without it, the last time sample is used.
+`lap_comparator.py` requires `Temps(s)` and `Distance(m)`. Every other channel is optional: if it is missing from a file, its panel is skipped. Without `PosX` and `PosZ`, no track map is drawn.
 
 ## How it works
 
@@ -83,12 +113,11 @@ Metadata: `circuit` sets the chart title, `temps` (format `M_SS_mmm`) sets the o
 
 ## Tech stack
 
-- **Python**: core language
+- **Python**: core language, for both the in-game app and the analysis tool
+- **Assetto Corsa Python API**: live car data (`ac`, `acsys`)
 - **Pandas**: CSV loading, cleaning and smoothing
 - **NumPy**: interpolation and delta computation
 - **Matplotlib**: charts, track map and interactive cursor
-
-> **Note:** the chart labels are in French.
 
 ## License
 
